@@ -3,7 +3,7 @@
 # Copyright 2023 ninjamar
 # nm.py
 # Nother Monstrosity - A program language inspired by lisp that is very buggy
-# Version 0.0.3
+# Version 0.0.4
 
 # MIT License
 #
