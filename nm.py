@@ -2,7 +2,7 @@
 
 # nm.py
 # Nother Monstrosity - A program language inspired by lisp that is very buggy
-# Version 0.0.8
+# Version 0.0.9
 
 # MIT License
 #
@@ -32,6 +32,9 @@
 
 
 import argparse
+import readline
+import traceback
+import sys
 
 # Generic classes/types the interpreter uses
 
@@ -267,6 +270,7 @@ class Engine:
                 "lte": lambda a, b: a <= b,
                 "eq": lambda a, b: a == b,
                 "print": lambda *a: print(*a),
+                "quit": lambda a: sys.exit(a),
                 # All variables defined inside functions
                 "locals": {},
                 # Flags used by the interpreter
@@ -334,22 +338,30 @@ class Engine:
         if env is None:
             env = self.global_env
 
-        # Check type of node
-        if isinstance(ast, Number):
-            return ast
-        elif isinstance(ast, Symbol):
-            return env.find(ast)
-
         # Really hacky solution to figure out if function is string...
         # Currently this function is recursive so we get MANY different formats of inputs which tend to break stuff
+
+        if isinstance(ast, Number):
+            return ast
+
+        # Somehow important
+        if not isinstance(ast, list):
+            ast = [ast]
+
         if len(ast) == 1:
             if ast[0][0] == '"' and ast[0][-1] == '"':
                 return String(ast[0][1:-1])
+            # Check type of node
+            # Not sure what this was for but the program runs better without it
+            # elif isinstance(ast, Symbol):
+            #    return env.find(ast)
             else:
                 # I somehow broke NM
                 return env.find(ast[0])
+        # Also very important
+        if len(ast) == 0:
+            return ast
 
-        # Match-case pattern is actually useful
         match ast:
             # Self explanatory
             # Import module
@@ -379,8 +391,10 @@ class Engine:
             # Everything else which is also where things get complicated/confusing
             case _:
                 # Not sure what this does but it is important
-                if len(ast) > 2 or len(ast) <= 1:
-                    return ast[0] if len(ast) == 1 else ast
+                if len(ast) > 2:
+                    return ast
+                elif len(ast) == 1:
+                    return ast[0]
 
                 try:
                     # Get function to run
@@ -484,7 +498,17 @@ class Engine:
     def repl(self):
         while True:
             cmd = input("nm>")
-            self.execstr(cmd)
+            try:
+                self.execstr(cmd)
+            except Exception as e:
+                self.show_exeption("repl", e)
+
+    def show_exeption(self, module, exc):
+        match exc:
+            case KeyError():
+                print(f"<{module}>: Illegal symbol {exc.args[0]}")
+            case SyntaxError():
+                print(f"<{module}>: Unexpected EOF")
 
 
 def cli():
@@ -502,7 +526,10 @@ def cli():
     if args.expr and args.path:
         raise argparse.ArgumentError("Cannot use --expr and path together")
     elif args.path is None and args.expr is None:
-        engine.repl()
+        try:
+            engine.repl()
+        except KeyboardInterrupt:
+            engine.evaluate(Ast(["quit", [130]]))
     elif args.expr:
         engine.execstrfromcli(args.expr, args.ast, args.no_eval)
     else:
