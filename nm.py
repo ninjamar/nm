@@ -2,7 +2,7 @@
 
 # nm.py
 # Nother Monstrosity - A program language inspired by lisp that is very buggy
-# Version 0.0.7
+# Version 0.0.8
 
 # MIT License
 #
@@ -46,8 +46,9 @@ String = str
 Number = (int, float)
 
 
-# Storage used instead of dict since it allows lookup in "locals" first
 class Env(dict):
+    """Storage used instead of dict since it allows lookup in "locals" first"""
+
     def find(self, key: object) -> object:
         """Find a key inside enviornment
 
@@ -63,8 +64,9 @@ class Env(dict):
             return self[key]
 
 
-# Wrapper class to store and execute functions
 class Function:
+    """Wrapper class to store and execute functions"""
+
     def __init__(self, engine, name: str, args: list | Ast, code: str) -> None:
         """Class to store and execute functions
 
@@ -113,14 +115,18 @@ class Function:
 
 
 class Engine:
-    # Tokenize a program but don't apply corrections
-    # TLDR; Transform a string into a list
+    """Runner to evaluate code in a namespace"""
 
-    def __init__(self):
+    def __init__(self, env=None):
         """Class to run NM program"""
         # Create a main global enviornment
-        self.global_env = self.default_env()
+        if env is None:
+            self.global_env = self.default_env()
+        else:
+            self.global_env = env
 
+    # Tokenize a program but don't apply corrections
+    # TLDR; Transform a string into a list
     def tokenize(self, chars: str) -> str:
         """Turn a string into tokens
 
@@ -505,5 +511,4 @@ def cli():
 
 if __name__ == "__main__":
     # TODO - Add comments
-    # TODO - Structure api as a class
     cli()
