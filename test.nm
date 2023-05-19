@@ -15,4 +15,5 @@
     (print (x))
     (print (dostuff ()))
     (print (baz (55 1)))
+    (print ("Hello World but even better"))
 )
