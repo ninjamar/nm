@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
-# Copyright 2023 ninjamar
 # nm.py
 # Nother Monstrosity - A program language inspired by lisp that is very buggy
-# Version 0.0.4
+# Version 0.0.6
 
 # MIT License
 #
@@ -429,11 +428,15 @@ def evaluater(ast: Ast, main=False) -> object | None:
 
 
 # Execute a NM program from a file
-def execfile(fname: str, show_ast=False, no_eval=False) -> None:
+def execfile(fname: str, show_ast: bool = False, no_eval: bool = False) -> None:
     """Execute an NM program from a file
 
     :param fname: path to file
     :type fname: str
+    :param show_ast: print ast, defaults to False
+    :type show_ast: bool, optional
+    :param no_eval: disable evaluation, defaults to False
+    :type no_eval: bool, optional
     """
     with open(fname) as f:
         contents = f.read()
@@ -455,13 +458,49 @@ def execstr(code: str) -> None:
     evaluater(parsed, main=True)
 
 
-if __name__ == "__main__":
-    # TODO - Add comments
+def execstrfromcli(code: str, show_ast: bool = False, no_eval: bool = False):
+    """Wrapper to run code from a cli program
+
+    :param code: code to run
+    :type code: str
+    :param show_ast: print ast, defaults to False
+    :type show_ast: bool, optional
+    :param no_eval: disable evaluation, defaults to False
+    :type no_eval: bool, optional
+    """
+    parsed = parse(code)
+    if show_ast:
+        print(parsed)
+    if not no_eval:
+        evaluater(parsed, main=True)
+
+
+def repl():
+    while True:
+        cmd = input("nm>")
+        execstr(cmd)
+
+
+def cli():
     parser = argparse.ArgumentParser(
         description="Execute a nm file", epilog="Thank you for using %(prog)s! :)"
     )
-    parser.add_argument("path")
+    parser.add_argument("path", nargs="?", default=None)
     parser.add_argument("--ast", action="store_true")
     parser.add_argument("--no-eval", action="store_true")
+    parser.add_argument("--expr")
     args = parser.parse_args()
-    execfile(args.path, args.ast, args.no_eval)
+
+    if args.expr and args.path:
+        raise argparse.ArgumentError("Cannot use --expr and path together")
+    if args.path is None and args.expr is None:
+        repl()
+    if args.expr:
+        execstrfromcli(args.expr, args.ast, args.no_eval)
+    else:
+        execfile(args.path, args.ast, args.no_eval)
+
+
+if __name__ == "__main__":
+    # TODO - Add comments
+    cli()
