@@ -61,6 +61,8 @@ class Env(dict):
             return self["locals"][key]
         else:
             return self[key]
+
+
 # Wrapper class to store and execute functions
 class Function:
     def __init__(self, engine, name: str, args: list | Ast, code: str) -> None:
@@ -109,13 +111,13 @@ class Function:
         """
         return self.execute(givenargs)
 
+
 class Engine:
     # Tokenize a program but don't apply corrections
     # TLDR; Transform a string into a list
 
     def __init__(self):
-        """Class to run NM program
-        """
+        """Class to run NM program"""
         # Create a main global enviornment
         self.global_env = self.default_env()
 
@@ -128,7 +130,6 @@ class Engine:
         :rtype: str
         """
         return chars.replace("(", " ( ").replace(")", " ) ").split()
-
 
     # Apply some corrections to generated tokens
     # Specifically this allows strings with whitespace inside of them to be parsed as a single item rather than many
@@ -171,7 +172,6 @@ class Engine:
                 break
         return new_tokens
 
-
     # Generate the ast from a list of tokens
     def generate_ast(self, tokens: list) -> list:
         """Generate an ast tree from a list of tokens
@@ -208,7 +208,6 @@ class Engine:
                 # 99% of the time this probably gets called
                 return self.atom(token)
 
-
     # Convert a token into a type
     # Current hierchy is from int -> float -> Symbol
     # String data type isn't present because at this stage strings have no effect
@@ -228,7 +227,6 @@ class Engine:
             except ValueError:
                 return Symbol(token)
 
-
     # Perform tokenization, fixes and ast generation in one step
     def parse(self, program: str) -> str:
         """Perform tokenization, fixes and ast generation
@@ -239,7 +237,6 @@ class Engine:
         :rtype: str
         """
         return self.generate_ast(self.fix(self.tokenize(program)))
-
 
     # Large function to create an enviorment/standard library
     def default_env(self) -> Env:
@@ -296,7 +293,6 @@ class Engine:
     # def create_function(name, args, code):
     #    return lambda *a: _lazy_execute_function(name, code, a, args)
 
-
     # Import library into env
     def importmodule(self, library: str) -> None:
         """Import a module into env
@@ -317,9 +313,8 @@ class Engine:
             except:
                 raise ModuleNotFoundError(f"Module {library} unable to be resolved")
 
-
     # Evaluate a single node
-    def evaluate(self, ast: Ast, env: Env=None) -> object | None:
+    def evaluate(self, ast: Ast, env: Env = None) -> object | None:
         """Evaluate a single node
 
         :param ast: ast to be evaluated
@@ -410,7 +405,6 @@ class Engine:
                 result = proc(*evaluated_args)
                 return result
 
-
     # Main loop for evaluation
     # Main argument should be True if calling directly since functions use this to evaluate code
     def evaluater(self, ast: Ast, main=False) -> object | None:
@@ -432,9 +426,10 @@ class Engine:
             # In the future, copy all the flags so they don't all have to be put here
             self.global_env["flags"] = {"FRETURN": False}
 
-
     # Execute a NM program from a file
-    def execfile(self, fname: str, show_ast: bool = False, no_eval: bool = False) -> None:
+    def execfile(
+        self, fname: str, show_ast: bool = False, no_eval: bool = False
+    ) -> None:
         """Execute an NM program from a file
 
         :param fname: path to file
@@ -453,7 +448,6 @@ class Engine:
         if not no_eval:
             self.evaluater(parsed, main=True)
 
-
     def execstr(self, code: str) -> None:
         """Wrapper to run code
 
@@ -463,8 +457,9 @@ class Engine:
         parsed = self.parse(code)
         self.evaluater(parsed, main=True)
 
-
-    def execstrfromcli(self, code: str, show_ast: bool = False, no_eval: bool = False) -> None:
+    def execstrfromcli(
+        self, code: str, show_ast: bool = False, no_eval: bool = False
+    ) -> None:
         """Wrapper to run code from a cli program
 
         :param code: code to run
@@ -479,7 +474,6 @@ class Engine:
             print(parsed)
         if not no_eval:
             self.evaluater(parsed, main=True)
-
 
     def repl(self):
         while True:
@@ -513,4 +507,3 @@ if __name__ == "__main__":
     # TODO - Add comments
     # TODO - Structure api as a class
     cli()
-
