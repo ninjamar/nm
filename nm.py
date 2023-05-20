@@ -33,7 +33,6 @@
 
 import argparse
 import readline
-import traceback
 import sys
 
 # Generic classes/types the interpreter uses
@@ -495,7 +494,8 @@ class Engine:
         if not no_eval:
             self.evaluater(parsed, main=True)
 
-    def repl(self):
+    def repl(self) -> None:
+        """Run an interactive session"""
         while True:
             cmd = input("nm>")
             try:
@@ -503,7 +503,14 @@ class Engine:
             except Exception as e:
                 self.show_exeption("repl", e)
 
-    def show_exeption(self, module, exc):
+    def show_exeption(self, module: str, exc: Exception) -> None:
+        """Show an exception raised from the program
+
+        :param module: location where exception occured
+        :type module: str
+        :param exc: instance of exception
+        :type exc: Exception
+        """
         match exc:
             case KeyError():
                 print(f"<{module}>: Illegal symbol {exc.args[0]}")
@@ -511,7 +518,11 @@ class Engine:
                 print(f"<{module}>: Unexpected EOF")
 
 
-def cli():
+def cli() -> None:
+    """Handle cli arguments
+
+    :raises argparse.ArgumentError: invalid arguments
+    """
     parser = argparse.ArgumentParser(
         description="Execute a nm file", epilog="Thank you for using %(prog)s! :)"
     )
