@@ -21,3 +21,6 @@ py-modules = ["nm"]
 
 [project.scripts]
 nm = "nm:cli"
+
+[project.optional-dependencies]
+docs = ["sphinx", "sphinx-rtd-theme"]
