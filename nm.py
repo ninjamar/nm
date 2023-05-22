@@ -321,7 +321,7 @@ class Engine:
                 self.global_env.update(vars(__import__(library)))
             except:
                 raise ModuleNotFoundError(f"Module {library} unable to be resolved")
-            
+
     def get_type(self, ast: Ast) -> type:
         """Get type from ast
 
@@ -334,7 +334,7 @@ class Engine:
             return type(ast[0])
         else:
             return type(ast)
-        
+
     def isstr(self, ast: Ast) -> String | None:
         """Check if ast is a string
 
@@ -349,7 +349,7 @@ class Engine:
         elif type(ast) == str and ast[0] == '"' and ast[-1] == '"':
             return String(ast[1:-1])
         return None
-    
+
     # Evaluate a single node
     def evaluate(self, ast: Ast, env: Env = None) -> object | None:
         """Evaluate a single node
@@ -413,10 +413,10 @@ class Engine:
                 # SUPER important
                 if len(ast) == 1:
                     return env.find(ast[0] if isinstance(ast, (Ast, list)) else ast)
-                
+
                 try:
                     # Get function to run
-                    proc = env.find(ast[0])#self.evaluate(ast[0])
+                    proc = env.find(ast[0])  # self.evaluate(ast[0])
                     # Handle arguments (probably the most confusing thing)
                     args = (self.evaluate(arg, env) for arg in ast[1])
                 # Not sure why catch is here but it helped fix a problem with the arguments of a function
