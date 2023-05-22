@@ -2,7 +2,7 @@
 
 # nm.py
 # Nother Monstrosity - A program language inspired by lisp that is very buggy
-# Version 0.0.9
+# Version 0.0.10
 
 # MIT License
 #
@@ -321,7 +321,35 @@ class Engine:
                 self.global_env.update(vars(__import__(library)))
             except:
                 raise ModuleNotFoundError(f"Module {library} unable to be resolved")
+            
+    def get_type(self, ast: Ast) -> type:
+        """Get type from ast
 
+        :param ast: ast to get type from
+        :type ast: Ast
+        :return: type of ast
+        :rtype: type
+        """
+        if isinstance(ast, (Ast, list)):
+            return type(ast[0])
+        else:
+            return type(ast)
+        
+    def isstr(self, ast: Ast) -> String | None:
+        """Check if ast is a string
+
+        :param ast: ast to check
+        :type ast: Ast
+        :return: ast as string else None
+        :rtype: String | None
+        """
+        if isinstance(ast, (Ast, list)) and len(ast) == 1 and type(ast[0]) == str:
+            if ast[0][0] == '"' and ast[0][-1] == '"':
+                return String(ast[0][1:-1])
+        elif type(ast) == str and ast[0] == '"' and ast[-1] == '"':
+            return String(ast[1:-1])
+        return None
+    
     # Evaluate a single node
     def evaluate(self, ast: Ast, env: Env = None) -> object | None:
         """Evaluate a single node
@@ -336,31 +364,24 @@ class Engine:
         # Cannot use default function parameters that include self
         if env is None:
             env = self.global_env
-
-        # Really hacky solution to figure out if function is string...
-        # Currently this function is recursive so we get MANY different formats of inputs which tend to break stuff
-
+        # Ast shouldn't be empty
+        if ast == []:
+            return ast
+        # See comment below
         if isinstance(ast, Number):
             return ast
+        # Forgot what this does but it is VERY important
+        if len(ast) == 1 and isinstance(ast, (Ast, list)):
+            if isinstance(ast[0], Number):
+                return ast[0]
+        # Check if ast is str
+        isstr = self.isstr(ast)
+        if isstr is not None:
+            return isstr
 
         # Somehow important
-        if not isinstance(ast, list):
-            ast = [ast]
-
-        if len(ast) == 1:
-            if ast[0][0] == '"' and ast[0][-1] == '"':
-                return String(ast[0][1:-1])
-            # Check type of node
-            # Not sure what this was for but the program runs better without it
-            # elif isinstance(ast, Symbol):
-            #    return env.find(ast)
-            else:
-                # I somehow broke NM
-                return env.find(ast[0])
-        # Also very important
-        if len(ast) == 0:
-            return ast
-
+        if not isinstance(ast, (Ast, list)):
+            return env.find(ast)
         match ast:
             # Self explanatory
             # Import module
@@ -389,20 +410,19 @@ class Engine:
                 return
             # Everything else which is also where things get complicated/confusing
             case _:
-                # Not sure what this does but it is important
-                if len(ast) > 2:
-                    return ast
-                elif len(ast) == 1:
-                    return ast[0]
-
+                # SUPER important
+                if len(ast) == 1:
+                    return env.find(ast[0] if isinstance(ast, (Ast, list)) else ast)
+                
                 try:
                     # Get function to run
-                    proc = self.evaluate(ast[0])
+                    proc = env.find(ast[0])#self.evaluate(ast[0])
                     # Handle arguments (probably the most confusing thing)
                     args = (self.evaluate(arg, env) for arg in ast[1])
                 # Not sure why catch is here but it helped fix a problem with the arguments of a function
-                except TypeError:
+                except (TypeError, KeyError):
                     return ast
+
                 # Arguments have been evaluated but functions haven't been called
                 evaluated_args = []
                 while True:
@@ -513,9 +533,12 @@ class Engine:
         """
         match exc:
             case KeyError():
+                raise
                 print(f"<{module}>: Illegal symbol {exc.args[0]}")
             case SyntaxError():
                 print(f"<{module}>: Unexpected EOF")
+            case _:
+                raise exc
 
 
 def cli() -> None:
@@ -548,5 +571,4 @@ def cli() -> None:
 
 
 if __name__ == "__main__":
-    # TODO - Add comments
     cli()
