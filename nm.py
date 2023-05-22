@@ -533,7 +533,6 @@ class Engine:
         """
         match exc:
             case KeyError():
-                raise
                 print(f"<{module}>: Illegal symbol {exc.args[0]}")
             case SyntaxError():
                 print(f"<{module}>: Unexpected EOF")
