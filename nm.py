@@ -2,7 +2,7 @@
 
 # nm.py
 # Nother Monstrosity - A program language inspired by lisp that is very buggy
-# Version 0.0.11
+# Version 0.0.12
 
 # MIT License
 #
@@ -157,7 +157,10 @@ class Engine:
         :return: tokenized string
         :rtype: str
         """
-        return chars.replace("(", " ( ").replace(")", " ) ").split()
+        tokens = chars.replace("(", " ( ").replace(")", " ) ").split()
+        tokens.insert(0, "(")
+        tokens.append(")")
+        return tokens
 
     # Apply some corrections to generated tokens
     # Specifically this allows strings with whitespace inside of them to be parsed as a single item rather than many

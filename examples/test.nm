@@ -1,19 +1,17 @@
-(   
-    (include math)
-    (func foobar (x)(
-        (return math.sqrt (x))
-    ))
-    (func dostuff ()(
-        (return "hello world")
-    ))
-    (func baz (x y)(
-        (define c (add (x y)))
-        (define z (math.sqrt (c)))
-        (return z)
-    ))
-    (define x (foobar (33)))
-    (print (x))
-    (print (dostuff ()))
-    (print (baz (55 1)))
-    (print ("Hello World but even better"))
-)
+(include math)
+(func foobar (x)(
+    (return math.sqrt (x))
+))
+(func dostuff ()(
+    (return "hello world")
+))
+(func baz (x y)(
+    (define c (add (x y)))
+    (define z (math.sqrt (c)))
+    (return z)
+))
+(define x (foobar (33)))
+(print (x))
+(print (dostuff ()))
+(print (baz (55 1)))
+(print ("Hello World but even better"))
