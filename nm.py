@@ -61,13 +61,13 @@ class Env(dict):
         :rtype: object
         """
         # Use this method instead of "__getitem__" because this method performs a lookup in "locals" then in the main dictionary
-        if key in self["locals"]:
-            #return self["locals"][key]
+        if str(key).split(".")[0] in self["locals"]:
+            # return self["locals"][key]
             return self.get_dot(f"locals.{key}")
         else:
-            #return self[key]
+            # return self[key]
             return self.get_dot(key)
-    
+
     def get_dot(self, key: str) -> object:
         """Get an object using dot notation
 
@@ -85,6 +85,7 @@ class Env(dict):
             except StopIteration:
                 break
         return parent
+
 
 class Function:
     """Wrapper class to store and execute functions"""
@@ -374,7 +375,7 @@ class Engine:
         return None
 
     # Evaluate a single node
-    def evaluate(self, ast: Ast, env: Env = None) -> object | None:
+    def evaluate(self, ast: Ast) -> object | None:
         """Evaluate a single node
 
         :param ast: ast to be evaluated
@@ -384,9 +385,7 @@ class Engine:
         :return: result of evaluated node
         :rtype: object | None
         """
-        # Cannot use default function parameters that include self
-        if env is None:
-            env = self.env
+
         # Ast shouldn't be empty
         if ast == []:
             return ast
@@ -403,7 +402,8 @@ class Engine:
 
         # Somehow important
         if not isinstance(ast, AstType):
-            return env.find(ast)
+            return self.env.find(ast)
+
         match ast:
             # Self explanatory
             # Import module
@@ -413,34 +413,34 @@ class Engine:
             # Return value from a function
             # Might be an issue evaluating value
             case ["return", *value]:
-                env["flags"]["FRETURN"] = True
+                self.env["flags"]["FRETURN"] = True
                 return self.evaluate(value)
             # Hasn't been fully tested but probably doesn't work
             # Conditionals might not work because it hasn't been tested
             case ["if", test, consequence, alternative]:
-                if self.evaluate(test, env):
-                    return self.evaluate(consequence, env)
+                if self.evaluate(test):
+                    return self.evaluate(consequence)
                 else:
-                    return self.evaluate(alternative, env)
+                    return self.evaluate(alternative)
             # Define/set a variable
             case ["define", symbol, exp]:
-                env[symbol] = self.evaluate(exp, env)
+                self.env[symbol] = self.evaluate(exp)
                 return
             # Define a function
             case ["func", name, args, code]:
-                env[name] = Function(self, name, args, code)
+                self.env[name] = Function(self, name, args, code)
                 return
             # Everything else which is also where things get complicated/confusing
             case _:
                 # SUPER important
                 if len(ast) == 1:
-                    return env.find(ast[0] if isinstance(ast, AstType) else ast)
+                    return self.env.find(ast[0] if isinstance(ast, AstType) else ast)
 
                 try:
                     # Get function to run
-                    proc = env.find(ast[0])  # self.evaluate(ast[0])
+                    proc = self.env.find(ast[0])  # self.evaluate(ast[0])
                     # Handle arguments (probably the most confusing thing)
-                    args = (self.evaluate(arg, env) for arg in ast[1])
+                    args = (self.evaluate(arg) for arg in ast[1])
                 # Not sure why catch is here but it helped fix a problem with the arguments of a function
                 except (TypeError, KeyError):
                     return ast
@@ -541,7 +541,9 @@ class Engine:
         while True:
             cmd = input("nm>")
             try:
-                self.execstr(cmd)
+                ret = self.execstr(cmd)
+                if ret is not None:
+                    print(ret)
             except Exception as e:
                 self.show_exeption("repl", e)
 
