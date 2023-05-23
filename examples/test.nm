@@ -1,14 +1,14 @@
 (   
     (include math)
     (func foobar (x)(
-        (return sqrt (x))
+        (return math.sqrt (x))
     ))
     (func dostuff ()(
         (return "hello world")
     ))
     (func baz (x y)(
         (define c (add (x y)))
-        (define z (sqrt (c)))
+        (define z (math.sqrt (c)))
         (return z)
     ))
     (define x (foobar (33)))

@@ -2,7 +2,7 @@
 
 # nm.py
 # Nother Monstrosity - A program language inspired by lisp that is very buggy
-# Version 0.0.10
+# Version 0.0.11
 
 # MIT License
 #
@@ -46,6 +46,7 @@ Symbol = str
 List = list
 String = str
 Number = (int, float)
+AstType = (Ast, list)
 
 
 class Env(dict):
@@ -61,10 +62,29 @@ class Env(dict):
         """
         # Use this method instead of "__getitem__" because this method performs a lookup in "locals" then in the main dictionary
         if key in self["locals"]:
-            return self["locals"][key]
+            #return self["locals"][key]
+            return self.get_dot(f"locals.{key}")
         else:
-            return self[key]
+            #return self[key]
+            return self.get_dot(key)
+    
+    def get_dot(self, key: str) -> object:
+        """Get an object using dot notation
 
+        :param key: key using dot notation
+        :type key: str
+        :return: object found
+        :rtype: object
+        """
+        dots = iter(str(key).split("."))
+        parent = self[next(dots)]
+        while True:
+            try:
+                dot = next(dots)
+                parent = parent[dot]
+            except StopIteration:
+                break
+        return parent
 
 class Function:
     """Wrapper class to store and execute functions"""
@@ -100,11 +120,11 @@ class Function:
                 f"{self.name} expected {len(self.args)} arguments, {len(givenargs)} given"
             )
         # Apply arguments to "locals"
-        self.engine.global_env["locals"] = dict(zip(self.args, givenargs))
+        self.engine.env["locals"] = dict(zip(self.args, givenargs))
         # Evaluate function
         result = self.engine.evaluater(self.code)
         # Clear "locals"
-        self.engine.global_env["locals"] = {}
+        self.engine.env["locals"] = {}
         return result
 
     def __call__(self, *givenargs) -> object:
@@ -123,9 +143,9 @@ class Engine:
         """Class to run NM program"""
         # Create a main global enviornment
         if env is None:
-            self.global_env = self.default_env()
+            self.env = self.default_env()
         else:
-            self.global_env = env
+            self.env = env
 
     # Tokenize a program but don't apply corrections
     # TLDR; Transform a string into a list
@@ -313,12 +333,12 @@ class Engine:
         try:
             # Firstly try finding module as NM
             # Currently module can't handle circular imports
-            # Evaluated code is added to "global_env"
+            # Evaluated code is added to "env"
             self.execfile(f"{library}.nm")
         except FileNotFoundError:
             try:
                 # Import python module
-                self.global_env.update(vars(__import__(library)))
+                self.env.update({library: vars(__import__(library))})
             except:
                 raise ModuleNotFoundError(f"Module {library} unable to be resolved")
 
@@ -330,7 +350,7 @@ class Engine:
         :return: type of ast
         :rtype: type
         """
-        if isinstance(ast, (Ast, list)):
+        if isinstance(ast, AstType):
             return type(ast[0])
         else:
             return type(ast)
@@ -343,7 +363,7 @@ class Engine:
         :return: ast as string else None
         :rtype: String | None
         """
-        if isinstance(ast, (Ast, list)) and len(ast) == 1 and type(ast[0]) == str:
+        if isinstance(ast, AstType) and len(ast) == 1 and type(ast[0]) == str:
             if ast[0][0] == '"' and ast[0][-1] == '"':
                 return String(ast[0][1:-1])
         elif type(ast) == str and ast[0] == '"' and ast[-1] == '"':
@@ -356,14 +376,14 @@ class Engine:
 
         :param ast: ast to be evaluated
         :type ast: Ast
-        :param env: enviornment to be used, defaults to global_env
+        :param env: enviornment to be used, defaults to env
         :type env: Env, optional
         :return: result of evaluated node
         :rtype: object | None
         """
         # Cannot use default function parameters that include self
         if env is None:
-            env = self.global_env
+            env = self.env
         # Ast shouldn't be empty
         if ast == []:
             return ast
@@ -371,16 +391,15 @@ class Engine:
         if isinstance(ast, Number):
             return ast
         # Forgot what this does but it is VERY important
-        if len(ast) == 1 and isinstance(ast, (Ast, list)):
+        if len(ast) == 1 and isinstance(ast, AstType):
             if isinstance(ast[0], Number):
                 return ast[0]
         # Check if ast is str
-        isstr = self.isstr(ast)
-        if isstr is not None:
+        if (isstr := self.isstr(ast)) is not None:
             return isstr
 
         # Somehow important
-        if not isinstance(ast, (Ast, list)):
+        if not isinstance(ast, AstType):
             return env.find(ast)
         match ast:
             # Self explanatory
@@ -412,7 +431,7 @@ class Engine:
             case _:
                 # SUPER important
                 if len(ast) == 1:
-                    return env.find(ast[0] if isinstance(ast, (Ast, list)) else ast)
+                    return env.find(ast[0] if isinstance(ast, AstType) else ast)
 
                 try:
                     # Get function to run
@@ -460,10 +479,10 @@ class Engine:
             result = self.evaluate(node)
             # Make sure we aren't main (main can't return)
             # Determine if we need to return
-            if not main and self.global_env["flags"]["FRETURN"]:
+            if not main and self.env["flags"]["FRETURN"]:
                 return result
             # In the future, copy all the flags so they don't all have to be put here
-            self.global_env["flags"] = {"FRETURN": False}
+            self.env["flags"] = {"FRETURN": False}
 
     # Execute a NM program from a file
     def execfile(
