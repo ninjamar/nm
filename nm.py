@@ -2,8 +2,8 @@
 
 # nm.py
 # Nother Monstrosity - A program language inspired by lisp that is very buggy
-# Version 0.0.13
-
+# Version 0.0.14
+__version__ = "0.0.14"
 # MIT License
 #
 # Copyright (c) 2023 ninjamar
@@ -34,6 +34,8 @@
 import argparse
 import readline
 import sys
+import inspect
+import os
 
 # Generic classes/types the interpreter uses
 
@@ -118,15 +120,27 @@ class Function:
 
 
 class Engine:
-    """Runner to evaluate code in a namespace"""
+    """Class to run NM Code"""
 
-    def __init__(self, env=None):
-        """Class to run NM program"""
+    def __init__(self, importpath=None, env=None):
+        """Class to run NM Code
+
+        :param importpath: path of module imports, defaults to None
+        :type importpath: _type_, optional
+        :param env: env to use, defaults to None
+        :type env: _type_, optional
+        """
+        self.path = []
+        self.modules = {}
         # Create a main global enviornment
         if env is None:
             self.env = self.default_env()
         else:
             self.env = env
+        if importpath is None:
+            self.path.append(os.getcwd())
+        else:
+            self.path.append(importpath)
 
     # Tokenize a program but don't apply corrections
     # TLDR; Transform a string into a list
@@ -318,12 +332,25 @@ class Engine:
             # Firstly try finding module as NM
             # Currently module can't handle circular imports
             # Evaluated code is added to "env"
-            self.execfile(f"{library}.nm")
+            # self.execfile(f"{library}.nm")
+            path = None
+            for _path in self.path:
+                if os.path.isdir(_path):
+                    path = _path
+
+            # Path doesn't exist or self.path is empty
+            if path is None:
+                raise FileNotFoundError
+            module = Engine()
+            module.execfile(path + "/" + library + ".nm")
+            self.modules[library] = module.env
+            self.env.update({library + "." + k: v for k, v in module.env.items()})
         except FileNotFoundError:
             try:
                 # Import python module
-                #self.env.update(vars(__import__(library)))
-                self.env.update({f"{library}.{k}": v for k, v in vars(__import__(library)).items()})
+                module = vars(__import__(library))
+                self.modules[library] = module
+                self.env.update({library + "." + k: v for k, v in module.items()})
             except:
                 raise ModuleNotFoundError(f"Module {library} unable to be resolved")
 
@@ -449,14 +476,14 @@ class Engine:
 
     # Main loop for evaluation
     # Main argument should be True if calling directly since functions use this to evaluate code
-    def evaluater(self, ast: Ast, main=False) -> object | None:
+    def evaluater(self, ast: Ast, main=False) -> object:
         """Evaluate a list of nodes
 
         :param ast: ast to evaluate
         :type ast: Ast
         :param main: is program running as main?, defaults to False
         :type main: bool, optional
-        :return: result of executed function if main, defaults to None
+        :return: result of executed function, defaults to None
         :rtype: object | None
         """
         for node in ast:
@@ -467,6 +494,7 @@ class Engine:
                 return result
             # In the future, copy all the flags so they don't all have to be put here
             self.env["flags"] = {"FRETURN": False}
+        return result
 
     # Execute a NM program from a file
     def execfile(
@@ -490,14 +518,16 @@ class Engine:
         if not no_eval:
             self.evaluater(parsed, main=True)
 
-    def execstr(self, code: str) -> None:
+    def execstr(self, code: str) -> object:
         """Wrapper to run code
 
         :param code: code to run
         :type code: str
+        :return: result of evaluated expression
+        :rtype: object
         """
         parsed = self.parse(code)
-        self.evaluater(parsed, main=True)
+        return self.evaluater(parsed, main=True)
 
     def execstrfromcli(
         self, code: str, show_ast: bool = False, no_eval: bool = False
@@ -519,9 +549,10 @@ class Engine:
 
     def repl(self) -> None:
         """Run an interactive session"""
+        print((f"NM {__version__}"))
         while True:
-            cmd = input("nm>")
             try:
+                cmd = input("nm>")
                 ret = self.execstr(cmd)
                 if ret is not None:
                     print(ret)
@@ -541,6 +572,8 @@ class Engine:
                 print(f"<{module}>: Illegal symbol {exc.args[0]}")
             case SyntaxError():
                 print(f"<{module}>: Unexpected EOF")
+            case EOFError():
+                self.evaluate(Ast(["quit", [130]]))
             case _:
                 raise exc
 
@@ -559,18 +592,19 @@ def cli() -> None:
     parser.add_argument("--expr")
     args = parser.parse_args()
 
-    engine = Engine()
-
     if args.expr and args.path:
         raise argparse.ArgumentError("Cannot use --expr and path together")
     elif args.path is None and args.expr is None:
+        engine = Engine()
         try:
             engine.repl()
         except KeyboardInterrupt:
             engine.evaluate(Ast(["quit", [130]]))
     elif args.expr:
+        engine = Engine()
         engine.execstrfromcli(args.expr, args.ast, args.no_eval)
     else:
+        engine = Engine(os.path.dirname(os.path.abspath(args.path)))
         engine.execfile(args.path, args.ast, args.no_eval)
 
 
