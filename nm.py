@@ -2,7 +2,7 @@
 
 # nm.py
 # Nother Monstrosity - A program language inspired by lisp that is very buggy
-# Version 0.0.12
+# Version 0.0.13
 
 # MIT License
 #
@@ -62,29 +62,9 @@ class Env(dict):
         """
         # Use this method instead of "__getitem__" because this method performs a lookup in "locals" then in the main dictionary
         if str(key).split(".")[0] in self["locals"]:
-            # return self["locals"][key]
-            return self.get_dot(f"locals.{key}")
+            return self["locals"][key]
         else:
-            # return self[key]
-            return self.get_dot(key)
-
-    def get_dot(self, key: str) -> object:
-        """Get an object using dot notation
-
-        :param key: key using dot notation
-        :type key: str
-        :return: object found
-        :rtype: object
-        """
-        dots = iter(str(key).split("."))
-        parent = self[next(dots)]
-        while True:
-            try:
-                dot = next(dots)
-                parent = parent[dot]
-            except StopIteration:
-                break
-        return parent
+            return self[key]
 
 
 class Function:
@@ -342,7 +322,8 @@ class Engine:
         except FileNotFoundError:
             try:
                 # Import python module
-                self.env.update({library: vars(__import__(library))})
+                #self.env.update(vars(__import__(library)))
+                self.env.update({f"{library}.{k}": v for k, v in vars(__import__(library)).items()})
             except:
                 raise ModuleNotFoundError(f"Module {library} unable to be resolved")
 
