@@ -34,7 +34,6 @@ __version__ = "0.0.14"
 import argparse
 import readline
 import sys
-import inspect
 import os
 
 # Generic classes/types the interpreter uses
