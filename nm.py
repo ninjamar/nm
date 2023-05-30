@@ -2,8 +2,9 @@
 
 # nm.py
 # Nother Monstrosity - A program language inspired by lisp that is very buggy
+# https://github.com/ninjamar/nm
 # Version 0.0.14
-__version__ = "0.0.14"
+__version__ = "0.0.15"
 # MIT License
 #
 # Copyright (c) 2023 ninjamar
@@ -48,6 +49,7 @@ List = list
 String = str
 Number = (int, float)
 AstType = (Ast, list)
+Array = list
 
 
 class Env(dict):
@@ -140,6 +142,7 @@ class Engine:
             self.path.append(os.getcwd())
         else:
             self.path.append(importpath)
+        sys.path.append(self.path[0])
 
     # Tokenize a program but don't apply corrections
     # TLDR; Transform a string into a list
@@ -261,6 +264,8 @@ class Engine:
         :return: ast tree
         :rtype: str
         """
+        # return self.generate_ast(self.fix(self.tokenize(self.handlecomments(program))))
+        # return self.generate_ast(self.fix(self.tokenize(self.handlecomments([program] if len(program) == 1 else self.handlecomments(program)))))
         return self.generate_ast(self.fix(self.tokenize(program)))
 
     # Large function to create an enviorment/standard library
@@ -285,6 +290,8 @@ class Engine:
                 "lt": lambda a, b: a < b,
                 "lte": lambda a, b: a <= b,
                 "eq": lambda a, b: a == b,
+                "chr": lambda a: chr(a),
+                "ord": lambda a: ord(a),
                 "print": lambda *a: print(*a),
                 "quit": lambda a: sys.exit(a),
                 # All variables defined inside functions
@@ -381,6 +388,21 @@ class Engine:
             return String(ast[1:-1])
         return None
 
+    def isarr(self, ast: Ast) -> Array | None:
+        """Check if ast is an array
+
+        :param ast: ast to check
+        :type ast: Ast
+        :return: ast as array else none
+        :rtype: Array | None
+        """
+        if isinstance(ast, AstType) and len(ast) == 1 and type(ast[0]) == str:
+            if ast[0][0] == "[" and ast[0][-1] == "]":
+                return Array(ast[0][1:-1].split(","))
+        elif type(ast) == str and ast[0] == "[" and ast[-1] == "]":
+            return Array(ast[1:-1].split(","))
+        return None
+
     # Evaluate a single node
     def evaluate(self, ast: Ast) -> object | None:
         """Evaluate a single node
@@ -406,7 +428,9 @@ class Engine:
         # Check if ast is str
         if (isstr := self.isstr(ast)) is not None:
             return isstr
-
+        # Check if ast is array
+        if (isarr := self.isarr(ast)) is not None:
+            return isarr
         # Somehow important
         if not isinstance(ast, AstType):
             return self.env.find(ast)
@@ -422,8 +446,21 @@ class Engine:
             case ["return", *value]:
                 self.env["flags"]["FRETURN"] = True
                 return self.evaluate(value)
+            # For each loop over item and call function every iteration
+            case ["each", item, function]:
+                item = self.env.find(item)
+                function = self.env.find(function)
+                for i in item:
+                    function(i)
+                return
             # Hasn't been fully tested but probably doesn't work
             # Conditionals might not work because it hasn't been tested
+            case ["if", test, consequence]:
+                if self.evaluate(test):
+                    return self.evaluate(
+                        consequence
+                    )  # Can only evaluate singluar expressions, to change to muliple use self.evaluater
+                return
             case ["if", test, consequence, alternative]:
                 if self.evaluate(test):
                     return self.evaluate(consequence)
@@ -433,6 +470,35 @@ class Engine:
             case ["define", symbol, exp]:
                 self.env[symbol] = self.evaluate(exp)
                 return
+            # Special list operations to modify list
+            # These haven't been tested
+            case ["append", symbol, item]:
+                self.env.find(symbol).append(self.evaluate(item))
+                return
+            case ["remove", symbol, item]:
+                self.env.find(symbol).remove(self.evaluate(item))
+                return
+            case ["extend", symbol, item]:
+                self.env.find(symbol).extend(self.env.find(self.evaluate(item)))
+                return
+            case ["clear", symbol]:
+                self.env.find(symbol).clear()
+                return
+            case ["index", symbol, item]:
+                return self.env.find(symbol).index(self.evaluate(item))
+            case ["insert", symbol, index, item]:
+                self.env.find(symbol).insert(index, self.evaluate(item))
+                return
+            case ["pop", symbol, index]:
+                return self.env.find(symbol).pop(index)
+            case ["reverse", symbol]:
+                self.env.find(symbol).reversed()
+                return
+            case ["sort", symbol]:
+                self.env.find(symbol).sort()
+                return
+            case ["count", symbol, item]:
+                return self.env.find(symbol).count(item)
             # Define a function
             case ["func", name, args, code]:
                 self.env[name] = Function(self, name, args, code)
@@ -485,6 +551,9 @@ class Engine:
         :return: result of executed function, defaults to None
         :rtype: object | None
         """
+        # Handle comments
+        if ast == []:
+            return
         for node in ast:
             result = self.evaluate(node)
             # Make sure we aren't main (main can't return)
@@ -493,6 +562,27 @@ class Engine:
                 return result
             # In the future, copy all the flags so they don't all have to be put here
             self.env["flags"] = {"FRETURN": False}
+        return result
+
+    def handlecomments(self, program: list) -> str:
+        """Handle comments
+
+        :param program: program
+        :type program: list
+        :return: program but with comments removed
+        :rtype: str
+        """
+        # result = []
+        result = ""
+        for token in program:
+            if token[0] == ";":
+                continue
+            elif ";" in token:
+                # result.append(token[:token.index(";")])
+                result += token[: token.index(";")]
+            else:
+                # result.append(token)
+                result += token
         return result
 
     # Execute a NM program from a file
@@ -509,8 +599,11 @@ class Engine:
         :type no_eval: bool, optional
         """
         with open(fname) as f:
-            contents = f.read()
-        parsed = self.parse(contents)
+            contents = (
+                f.readlines()
+            )  # This is required because self.handlecomments checks line by line
+        parsed = self.parse(self.handlecomments(contents))
+        # parsed = self.parse(contents)
         if show_ast:
             print(parsed)
         # Main loop
@@ -525,7 +618,8 @@ class Engine:
         :return: result of evaluated expression
         :rtype: object
         """
-        parsed = self.parse(code)
+        parsed = self.parse(self.handlecomments([code]))
+        # parsed = self.parse(code)
         return self.evaluater(parsed, main=True)
 
     def execstrfromcli(
@@ -540,7 +634,8 @@ class Engine:
         :param no_eval: disable evaluation, defaults to False
         :type no_eval: bool, optional
         """
-        parsed = self.parse(code)
+        parsed = self.parse(self.handlecomments([code]))
+        # parsed = self.parse(code)
         if show_ast:
             print(parsed)
         if not no_eval:
