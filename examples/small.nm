@@ -29,15 +29,17 @@
 (define a 0)
 (define o [])
 (func handle_char (c) (
-    (if (eq (a 250)) 
+    (if (eq (a 250))(
         (define a 0)
-    )
-    (if (eq (c "+")) 
+    ))
+    (if (eq (c "+"))(
         (define a (add (a 1)))
-    )
-    (if (eq (c ".")) 
+    ))
+    (if (eq (c "."))(
         (append o (chr (a)))
-    )
+    ))
 ))
-(each program handle_char)
+(foreach program item (
+    (handle_char (item))
+))
 (print (o))

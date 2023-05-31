@@ -3,8 +3,8 @@
 # nm.py
 # Nother Monstrosity - A program language inspired by lisp that is very buggy
 # https://github.com/ninjamar/nm
-# Version 0.0.14
-__version__ = "0.0.15"
+# Version 0.0.16
+__version__ = "0.0.16"
 # MIT License
 #
 # Copyright (c) 2023 ninjamar
@@ -320,6 +320,22 @@ class Engine:
                 "==": env["eq"],
             }
         )
+        """
+        env.update(
+            {
+                "append": lambda a, b: self.env.find(a).append(b),  # self.evaluate(b)?
+                "remove": lambda a, b: self.env.find(a).remove(b),
+                "extend": lambda a, b: self.env.find(a).extend(b),  # Not sure here
+                "clear": lambda a: self.env.find(a).clear(),
+                "index": lambda a, b: self.env.find(a).index(b),
+                "insert": lambda a, b, c: self.env.find(a).insert(b, c),
+                "pop": lambda a, b: self.env.find(a).pop(b),
+                "reverse": lambda a: self.env.find(a).reversed(),
+                "sort": lambda a: self.env.find(a).sort(),
+                "count": lambda a, b: self.env.find(a).count(b),
+            }
+        )
+        """
         return env
 
     # Migrated to function
@@ -447,31 +463,42 @@ class Engine:
                 self.env["flags"]["FRETURN"] = True
                 return self.evaluate(value)
             # For each loop over item and call function every iteration
-            case ["each", item, function]:
-                item = self.env.find(item)
-                function = self.env.find(function)
-                for i in item:
-                    function(i)
+            case ["foreach", over, asitem, code]:
+                over = self.env.find(over)
+                # Hack to allow each iteration of loop to have a namespace
+                f = Function(self, "foreach", [asitem], code)
+                for item in over:
+                    r = f(item)
+                    if r is not None and self.env["flags"]["FRETURN"]:
+                        return r
+                return
+            case ["while", test, code]:
+                f = Function(self, "while", [], code)
+                while self.evaluate(test):
+                    r = f()
+                    if r is not None and self.env["flags"]["FRETURN"]:
+                        return r
                 return
             # Hasn't been fully tested but probably doesn't work
             # Conditionals might not work because it hasn't been tested
             case ["if", test, consequence]:
                 if self.evaluate(test):
-                    return self.evaluate(
+                    return self.evaluater(
                         consequence
                     )  # Can only evaluate singluar expressions, to change to muliple use self.evaluater
                 return
             case ["if", test, consequence, alternative]:
                 if self.evaluate(test):
-                    return self.evaluate(consequence)
+                    return self.evaluater(consequence)
                 else:
-                    return self.evaluate(alternative)
+                    return self.evaluater(alternative)
             # Define/set a variable
             case ["define", symbol, exp]:
                 self.env[symbol] = self.evaluate(exp)
                 return
             # Special list operations to modify list
             # These haven't been tested
+            
             case ["append", symbol, item]:
                 self.env.find(symbol).append(self.evaluate(item))
                 return

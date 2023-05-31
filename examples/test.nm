@@ -1,4 +1,5 @@
 (include math)
+
 (func foobar (x)(
     (return math.sqrt (x))
 ))
@@ -10,8 +11,15 @@
     (define z (math.sqrt (c)))
     (return z)
 ))
+
 (define x (foobar (33)))
 (print (x))
 (print (dostuff ()))
 (print (baz (55 1)))
 (print ("Hello World but even better"))
+
+(define a 0)
+(while (lte (a 5)) (
+    (print (a))
+    (define a (add (a 1)))
+))
