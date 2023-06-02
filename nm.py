@@ -3,8 +3,8 @@
 # nm.py
 # Nother Monstrosity - A program language inspired by lisp that is very buggy
 # https://github.com/ninjamar/nm
-# Version 0.0.16
-__version__ = "0.0.16"
+# Version 0.0.17
+__version__ = "0.0.17"
 # MIT License
 #
 # Copyright (c) 2023 ninjamar
@@ -45,7 +45,6 @@ class Ast(list):
 
 
 Symbol = str
-List = list
 String = str
 Number = (int, float)
 AstType = (Ast, list)
@@ -338,10 +337,6 @@ class Engine:
         """
         return env
 
-    # Migrated to function
-    # def create_function(name, args, code):
-    #    return lambda *a: _lazy_execute_function(name, code, a, args)
-
     # Import library into env
     def importmodule(self, library: str) -> None:
         """Import a module into env
@@ -413,11 +408,138 @@ class Engine:
         :rtype: Array | None
         """
         if isinstance(ast, AstType) and len(ast) == 1 and type(ast[0]) == str:
+            if len(ast) == 2:  # Ast is []
+                return Array([])
             if ast[0][0] == "[" and ast[0][-1] == "]":
                 return Array(ast[0][1:-1].split(","))
         elif type(ast) == str and ast[0] == "[" and ast[-1] == "]":
+            if len(ast) == 2:  # Ast is []
+                return Array([])
             return Array(ast[1:-1].split(","))
         return None
+
+    def _define(self, symbol: Symbol, exp: object) -> None:
+        """Define symbol to exp literally
+
+        :param symbol: symbol to set
+        :type symbol: Symbol
+        :param exp: expression
+        :type exp: object
+        """
+        self.env[symbol] = exp
+
+    def define(self, symbol: Symbol, exp: object) -> None:
+        """Define symbol to exp
+
+        :param symbol: symbol to set
+        :type symbol: Symbol
+        :param exp: expression to evaluate
+        :type exp: object
+        """
+        self._define(symbol, self.evaluate(exp))
+
+    def handle_object_property(self, symbol: Symbol, _property: Symbol, args: list) -> object:
+        """Handle lookup for property of an object
+
+        :param symbol: symbol to perform lookup
+        :type symbol: Symbol
+        :param _property: symbol to lookup
+        :type _property: Symbol
+        :param args: arguments passed
+        :type args: list
+        :return: result of lookup
+        :rtype: object
+        """
+        # Current syntax is object->property but it doesn't handle multiple lookups eg object->property->property
+        match self.env.find(symbol):
+            case Array():
+                return self.handle_array_property(symbol, _property, args)
+            case String():
+                return self.handle_string_property(symbol, _property, args)
+            case int() | float():  # Number
+                return self.handle_number_property(symbol, _property, args)
+
+    def handle_array_property(self, symbol: Symbol, _property: Symbol, args: list) -> object:
+        """Handle lookup for array
+
+        :param symbol: symbol to perform lookup
+        :type symbol: Symbol
+        :param _property: symbol to lookup
+        :type _property: Symbol
+        :param args: arguments passed
+        :type args: list
+        :return: result of lookup
+        :rtype: object
+        """
+        match _property:
+            case "append":
+                self.env.find(symbol).append(args[0])
+                return
+            case "remove":
+                self.env.find(symbol).remove(args[0])
+                return
+            case "extend":
+                self.env.find(symbol).extend(self.env.find(args[0]))
+                return
+            case "clear":
+                self.env.find(symbol).clear()
+                return
+            case "index":
+                return self.env.find(symbol).index(args[0])
+            case "insert":
+                self.env.find(symbol).insert(args[0], args[1])
+                return
+            case "pop":
+                return self.env.find(symbol).pop(args[0])
+            case "reverse":
+                self.env.find(symbol).reversed()
+                return
+            case "sort":
+                self.env.find(symbol).sort()
+                return
+            case "count":
+                return self.env.find(symbol).count(args[0])
+            case "_":
+                self._define(symbol, args[0])
+
+    def handle_string_property(self, symbol: Symbol, _property: Symbol, args: list):
+        """Handle lookup for string
+
+        :param symbol: symbol to perform lookup
+        :type symbol: Symbol
+        :param _property: symbol to lookup
+        :type _property: Symbol
+        :param args: arguments passed
+        :type args: list
+        :return: result of lookup
+        :rtype: object
+        """
+        match _property:
+            case "add":
+                raise NotImplementedError
+            case "_":
+                self._define(symbol, args[0])
+
+    def handle_number_property(self, symbol: Symbol, _property: Symbol, args: list):
+        """Handle lookup for number
+
+        :param symbol: symbol to perform lookup
+        :type symbol: Symbol
+        :param _property: symbol to lookup
+        :type _property: Symbol
+        :param args: arguments passed
+        :type args: list
+        :return: result of lookup
+        :rtype: object
+        """
+        match _property:
+            case "_":
+                self._define(symbol, args[0])
+            case _:
+                self._define(
+                    symbol, self.env.find(_property)(self.env.find(symbol), *args)
+                )
+                return
 
     # Evaluate a single node
     def evaluate(self, ast: Ast) -> object | None:
@@ -430,7 +552,6 @@ class Engine:
         :return: result of evaluated node
         :rtype: object | None
         """
-
         # Ast shouldn't be empty
         if ast == []:
             return ast
@@ -450,7 +571,6 @@ class Engine:
         # Somehow important
         if not isinstance(ast, AstType):
             return self.env.find(ast)
-
         match ast:
             # Self explanatory
             # Import module
@@ -494,38 +614,8 @@ class Engine:
                     return self.evaluater(alternative)
             # Define/set a variable
             case ["define", symbol, exp]:
-                self.env[symbol] = self.evaluate(exp)
+                self.define(symbol, exp)
                 return
-            # Special list operations to modify list
-            # These haven't been tested
-            
-            case ["append", symbol, item]:
-                self.env.find(symbol).append(self.evaluate(item))
-                return
-            case ["remove", symbol, item]:
-                self.env.find(symbol).remove(self.evaluate(item))
-                return
-            case ["extend", symbol, item]:
-                self.env.find(symbol).extend(self.env.find(self.evaluate(item)))
-                return
-            case ["clear", symbol]:
-                self.env.find(symbol).clear()
-                return
-            case ["index", symbol, item]:
-                return self.env.find(symbol).index(self.evaluate(item))
-            case ["insert", symbol, index, item]:
-                self.env.find(symbol).insert(index, self.evaluate(item))
-                return
-            case ["pop", symbol, index]:
-                return self.env.find(symbol).pop(index)
-            case ["reverse", symbol]:
-                self.env.find(symbol).reversed()
-                return
-            case ["sort", symbol]:
-                self.env.find(symbol).sort()
-                return
-            case ["count", symbol, item]:
-                return self.env.find(symbol).count(item)
             # Define a function
             case ["func", name, args, code]:
                 self.env[name] = Function(self, name, args, code)
@@ -535,16 +625,12 @@ class Engine:
                 # SUPER important
                 if len(ast) == 1:
                     return self.env.find(ast[0] if isinstance(ast, AstType) else ast)
-
+                # Handle arguments
                 try:
-                    # Get function to run
-                    proc = self.env.find(ast[0])  # self.evaluate(ast[0])
-                    # Handle arguments (probably the most confusing thing)
                     args = (self.evaluate(arg) for arg in ast[1])
                 # Not sure why catch is here but it helped fix a problem with the arguments of a function
-                except (TypeError, KeyError):
+                except TypeError:
                     return ast
-
                 # Arguments have been evaluated but functions haven't been called
                 evaluated_args = []
                 while True:
@@ -562,6 +648,12 @@ class Engine:
                             evaluated_args.append(arg)
                     except StopIteration:
                         break
+                # Check if shorthand for property
+                if "->" in ast[0]:
+                    obj, _property = ast[0].split("->")
+                    return self.handle_object_property(obj, _property, evaluated_args)
+                # Get function to run
+                proc = self.env.find(ast[0])
                 # Actually call function
                 result = proc(*evaluated_args)
                 return result

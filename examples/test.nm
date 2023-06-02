@@ -7,11 +7,10 @@
     (return "hello world")
 ))
 (func baz (x y)(
-    (define c (add (x y)))
-    (define z (math.sqrt (c)))
-    (return z)
+    (return math.sqrt ((add (x y))))
 ))
 
+; Cannot apply arrow syntax to definition because the symbol doesn't exist
 (define x (foobar (33)))
 (print (x))
 (print (dostuff ()))
@@ -21,5 +20,6 @@
 (define a 0)
 (while (lte (a 5)) (
     (print (a))
-    (define a (add (a 1)))
+    ;(define a (add (a 1)))
+    (a->add (1))
 ))

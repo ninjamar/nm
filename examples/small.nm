@@ -30,13 +30,14 @@
 (define o [])
 (func handle_char (c) (
     (if (eq (a 250))(
-        (define a 0)
+        ;(define a 0)
+        (a->_ (0))
     ))
     (if (eq (c "+"))(
-        (define a (add (a 1)))
+        (a->add (1))
     ))
     (if (eq (c "."))(
-        (append o (chr (a)))
+        (o->append (chr (a)))
     ))
 ))
 (foreach program item (
