@@ -319,22 +319,61 @@ class Engine:
                 "==": env["eq"],
             }
         )
-        """
         env.update(
             {
-                "append": lambda a, b: self.env.find(a).append(b),  # self.evaluate(b)?
-                "remove": lambda a, b: self.env.find(a).remove(b),
-                "extend": lambda a, b: self.env.find(a).extend(b),  # Not sure here
-                "clear": lambda a: self.env.find(a).clear(),
-                "index": lambda a, b: self.env.find(a).index(b),
-                "insert": lambda a, b, c: self.env.find(a).insert(b, c),
-                "pop": lambda a, b: self.env.find(a).pop(b),
-                "reverse": lambda a: self.env.find(a).reversed(),
-                "sort": lambda a: self.env.find(a).sort(),
-                "count": lambda a, b: self.env.find(a).count(b),
+                "property": {
+                    "array": {
+                        "append": lambda symbol, _property, args: self.env.find(
+                            symbol
+                        ).append(args[0]),
+                        "remove": lambda symbol, _property, args: self.env.find(
+                            symbol
+                        ).remove(args[0]),
+                        "extend": lambda symbol, _property, args: self.env.find(
+                            symbol
+                        ).extend(self.env.find(args[0])),
+                        "clear": lambda symbol, _property, args: self.env.find(
+                            symbol
+                        ).clear(),
+                        "index": lambda symbol, _property, args: self.env.find(
+                            symbol
+                        ).index(args[0]),
+                        "insert": lambda symbol, _property, args: self.env.find(
+                            symbol
+                        ).insert(args[0], args[1]),
+                        "pop": lambda symbol, _property, args: self.env.find(
+                            symbol
+                        ).pop(args[0]),
+                        "reverse": lambda symbol, _property, args: self.env.find(
+                            symbol
+                        ).reversed(),
+                        "sort": lambda symbol, _property, args: self.env.find(
+                            symbol
+                        ).sort(),
+                        "count": lambda symbol, _property, args: self.env.find(
+                            symbol
+                        ).count(args[0]),
+                        "_": lambda symbol, _property, args: self._define(
+                            symbol, args[0]
+                        ),
+                    },
+                    "string": {
+                        "_": lambda symbol, _property, args: self._define(
+                            symbol, args[0]
+                        )
+                    },
+                    "number": {
+                        "_": lambda symbol, _property, args: self._define(
+                            symbol, args[0]
+                        ),
+                        "__default__": lambda symbol, _property, args: self._define(
+                            symbol,
+                            self.env.find(_property)(self.env.find(symbol), *args),
+                        ),
+                    },
+                }
             }
         )
-        """
         return env
 
     # Import library into env
@@ -438,7 +477,9 @@ class Engine:
         """
         self._define(symbol, self.evaluate(exp))
 
-    def handle_object_property(self, symbol: Symbol, _property: Symbol, args: list) -> object:
+    def handle_object_property(
+        self, symbol: Symbol, _property: Symbol, args: list
+    ) -> object:
         """Handle lookup for property of an object
 
         :param symbol: symbol to perform lookup
@@ -451,95 +492,18 @@ class Engine:
         :rtype: object
         """
         # Current syntax is object->property but it doesn't handle multiple lookups eg object->property->property
-        match self.env.find(symbol):
-            case Array():
-                return self.handle_array_property(symbol, _property, args)
-            case String():
-                return self.handle_string_property(symbol, _property, args)
-            case int() | float():  # Number
-                return self.handle_number_property(symbol, _property, args)
-
-    def handle_array_property(self, symbol: Symbol, _property: Symbol, args: list) -> object:
-        """Handle lookup for array
-
-        :param symbol: symbol to perform lookup
-        :type symbol: Symbol
-        :param _property: symbol to lookup
-        :type _property: Symbol
-        :param args: arguments passed
-        :type args: list
-        :return: result of lookup
-        :rtype: object
-        """
-        match _property:
-            case "append":
-                self.env.find(symbol).append(args[0])
-                return
-            case "remove":
-                self.env.find(symbol).remove(args[0])
-                return
-            case "extend":
-                self.env.find(symbol).extend(self.env.find(args[0]))
-                return
-            case "clear":
-                self.env.find(symbol).clear()
-                return
-            case "index":
-                return self.env.find(symbol).index(args[0])
-            case "insert":
-                self.env.find(symbol).insert(args[0], args[1])
-                return
-            case "pop":
-                return self.env.find(symbol).pop(args[0])
-            case "reverse":
-                self.env.find(symbol).reversed()
-                return
-            case "sort":
-                self.env.find(symbol).sort()
-                return
-            case "count":
-                return self.env.find(symbol).count(args[0])
-            case "_":
-                self._define(symbol, args[0])
-
-    def handle_string_property(self, symbol: Symbol, _property: Symbol, args: list):
-        """Handle lookup for string
-
-        :param symbol: symbol to perform lookup
-        :type symbol: Symbol
-        :param _property: symbol to lookup
-        :type _property: Symbol
-        :param args: arguments passed
-        :type args: list
-        :return: result of lookup
-        :rtype: object
-        """
-        match _property:
-            case "add":
-                raise NotImplementedError
-            case "_":
-                self._define(symbol, args[0])
-
-    def handle_number_property(self, symbol: Symbol, _property: Symbol, args: list):
-        """Handle lookup for number
-
-        :param symbol: symbol to perform lookup
-        :type symbol: Symbol
-        :param _property: symbol to lookup
-        :type _property: Symbol
-        :param args: arguments passed
-        :type args: list
-        :return: result of lookup
-        :rtype: object
-        """
-        match _property:
-            case "_":
-                self._define(symbol, args[0])
-            case _:
-                self._define(
-                    symbol, self.env.find(_property)(self.env.find(symbol), *args)
-                )
-                return
+        t = self.env.find(symbol)
+        find_object_property = (
+            lambda type, _property: self.env["property"][type][_property]
+            if _property in self.env["property"][type]
+            else self.env["property"][type]["__default__"]
+        )
+        if isinstance(t, Array):
+            return find_object_property("array", _property)(symbol, _property, args)
+        elif isinstance(t, String):
+            return find_object_property("string", _property)(symbol, _property, args)
+        elif isinstance(t, Number):
+            return find_object_property("number", _property)(symbol, _property, args)
 
     # Evaluate a single node
     def evaluate(self, ast: Ast) -> object | None:
