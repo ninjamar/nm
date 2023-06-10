@@ -407,8 +407,8 @@ class Engine:
                 module = vars(__import__(library))
                 self.modules[library] = module
                 self.env.update({library + "." + k: v for k, v in module.items()})
-            except:
-                raise ModuleNotFoundError(f"Module {library} unable to be resolved")
+            except ModuleNotFoundError:
+                raise
 
     def get_type(self, ast: Ast) -> type:
         """Get type from ast
@@ -655,16 +655,13 @@ class Engine:
         :return: program but with comments removed
         :rtype: str
         """
-        # result = []
         result = ""
         for token in program:
             if token[0] == ";":
                 continue
             elif ";" in token:
-                # result.append(token[:token.index(";")])
                 result += token[: token.index(";")]
             else:
-                # result.append(token)
                 result += token
         return result
 
@@ -749,6 +746,8 @@ class Engine:
                 print(f"<{module}>: Illegal symbol {exc.args[0]}")
             case SyntaxError():
                 print(f"<{module}>: Unexpected EOF")
+            case ModuleNotFoundError():
+                print(f"<{module}>: Module {exc.name} not found")
             case EOFError():
                 self.evaluate(Ast(["quit", [130]]))
             case _:
