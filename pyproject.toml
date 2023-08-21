@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nm-lisp"
-version = "0.0.17"
+version = "0.0.18"
 authors = [
     { name="ninjamar" },
 ]
@@ -20,7 +20,7 @@ classifiers = [
 py-modules = ["nm"]
 
 [project.scripts]
-nm = "nm:cli"
+nmpy = "nm:cli"
 
 [project.optional-dependencies]
 docs = ["sphinx", "sphinx-rtd-theme"]

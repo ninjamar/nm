@@ -3,8 +3,8 @@
 # nm.py
 # Nother Monstrosity - A program language inspired by lisp that is very buggy
 # https://github.com/ninjamar/nm
-# Version 0.0.17
-__version__ = "0.0.17"
+# Version 0.0.18
+__version__ = "0.0.18"
 # MIT License
 #
 # Copyright (c) 2023 ninjamar
